@@ -8,7 +8,7 @@ A minimal bare‑metal Cortex‑A53 demo that loads **32×32 RGB BMP** from SD, 
 - SD assets: weights (`dw3x3_c3.bin`, `pw1x1_c10x3.bin`), `labels.txt`, BMP samples (`digit_0.bmp`..`digit_9.bmp`)
 
 ## Directory
-- `firmware/` — Bare‑metal sources (`mobilenet_bm.cpp`, `ref_kernels.*`)
+- `vitis_src/` — Bare‑metal sources (`mobilenet_bm.cpp`, `ref_kernels.*`)
 - `tools/` — Training & export scripts (synthetic digits)
 - `assets/` — Quantized weights, labels, and sample images
 - `docs/` — Deep-dive and quickstart
