@@ -14,7 +14,7 @@ A minimal bare‑metal Cortex‑A53 demo that loads **32×32 RGB BMP** from SD, 
 - `docs/` — Deep-dive and quickstart
 
 ## Build (firmware)
-> Requires Xilinx/AMD Vitis or SDK with Standalone A53 BSP.  
-> Create a new application project, add `firmware/` sources, and link FatFs (`xilffs`) & timer (`xtime_l`).
+> Requires Xilinx/AMD Vitis IDE with Standalone A53 BSP.  
+> Create a new application project, add `vitis_src/` sources, and link FatFs (`xilffs`) & timer (`xtime_l`).
 
 
