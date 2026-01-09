@@ -3,6 +3,16 @@
 A minimal bare‑metal Cortex‑A53 demo that loads **32×32 RGB BMP** from SD, runs a quantized **MobileNet‑style** path 
 (Depthwise 3×3 + ReLU6 → Pointwise 1×1 → Global Average Pool → Softmax), and prints Top‑K predictions for digits **0–9**.
 
+
+## Project Lineage
+
+This project is a continuation of, and builds upon, the SD-card image I/O and bare‑metal scaffolding from:
+- **zcu104-baremetal-imgio** — https://github.com/vandinhtranengg/zcu104-baremetal-imgio
+
+The prior repository provided SD file handling and BMP loading patterns that this demo reuses and extends with a quantized
+MobileNet‑style pipeline (DW3×3 → ReLU6 → PW1×1 → GAP → Softmax) and digit classification (0–9).
+
+
 ## Features
 - Reference NHWC uint8 kernels: `dwconv3x3_nhwc_u8`, `pwconv1x1_nhwc_u8`, `avgpool_global_nhwc_u8`, `softmax_u8`
 - Single weight scale `w_scale` with `w_zp=128`
