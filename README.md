@@ -36,6 +36,14 @@ MobileNet‑style pipeline (DW3×3 → ReLU6 → PW1×1 → GAP → Softmax) and
 0:/assets/samples             (sample image folder)
 ```
 
+## Pre-built Hardware Platform (XSA)
+
+This repository includes a pre-built hardware platform:
+- **`standalone_zynq_core.xsa`** — Vivado-exported hardware (Zynq UltraScale+ MPSoC), suitable for creating a Standalone A53 domain in Vitis.
+
+You can use this XSA directly to create the platform and domain (Standalone on A53), then import the firmware sources and build the bare‑metal app without opening Vivado.
+
+
 ## Getting Started
 
 1. Build the bare‑metal app in Vitis/SDK (A53 Standalone).
