@@ -26,7 +26,7 @@ A minimal bare‑metal Cortex‑A53 demo that loads **32×32 RGB BMP** from SD, 
 0:/assets/samples             (sample image folder)
 ```
 
-# Getting Started
+## Getting Started
 
 1. Build the bare‑metal app in Vitis/SDK (A53 Standalone).
 2. Copy assets to `0:/assets/` on SD:
