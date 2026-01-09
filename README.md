@@ -57,6 +57,8 @@ Troubleshooting:
 - If size mismatches occur, verify filenames and sizes:
   - DW = `Cin*3*3` = 27 bytes; PW = `Cout*Cin` = 30 bytes; labels = 10 lines.
 
+---
+
 ## 🚀 What to do next
 
 ### 1) Swap in real MobileNetV1 weights (quantized INT8)
@@ -80,30 +82,7 @@ Troubleshooting:
 **Preprocessing**
 - Add a **resizer** for arbitrary BMP sizes:
   - **Nearest** (fast) and **bilinear** (better quality) to standard input sizes (e.g., 224×224).
-  - Provide a CLI flag or firmware setting to choose the mode.
 
-**Performance (A53)**
-- Enable `-O3 -mcpu=cortex-a53 -mfpu=neon -ffast-math`.
-- Add **NEON intrinsics** for PW 1×1 (subtract zero‑point, widen to `int16`, accumulate in `int32`, requantize).
-- Optimize loop ordering, pointer arithmetic, and cache behavior; add cache maintenance around large I/O buffers when using SD DMA.
 
-**Robustness & tooling**
-- Add a **manifest + SHA256 checks** for all weight files; verify sizes and first bytes at boot.
-- Provide a small **host-side tester** (no Xilinx libs) that validates DW/PW/AvgPool/Softmax against Python outputs.
-- Include a **BMP pack** generator and dataset options (synthetic, MNIST/SVHN) under `tools/`.
 
-**Developer experience**
-- Add `CONTRIBUTING.md`, issue/PR templates, and a lightweight **CI** that runs script sanity (no heavy training) and checks asset sizes.
-- Document BSP settings (enable `xilffs`, `xtime_l`) and long‑filename (LFN) options for FatFs.
 
----
-
-### ✅ Checklist (starter milestones)
-
-- [ ] Export real MobileNetV1 INT8 weights with `model.json` and per‑block binaries.  
-- [ ] Implement multi‑block execution (DW → ReLU6 → PW) with optional stride in DW.  
-- [ ] Add nearest/bilinear resize to 224×224.  
-- [ ] Introduce per‑layer scales and bias handling.  
-- [ ] NEON‑optimize PW 1×1; profile A53 and print µs timings.  
-- [ ] Manifest + hash verification at boot; host-side unit tests.  
-- [ ] CI for tools; docs for build and BSP configuration.
