@@ -17,4 +17,8 @@ A minimal bare‑metal Cortex‑A53 demo that loads **32×32 RGB BMP** from SD, 
 > Requires Xilinx/AMD Vitis IDE with Standalone A53 BSP.  
 > Create a new application project, add `vitis_src/` sources, and link FatFs (`xilffs`) & timer (`xtime_l`).
 
-
+## SD Card Layout
+> 0:/assets/dw3x3_c3.bin        (27 bytes)  
+> 0:/assets/pw1x1_c10x3.bin     (30 bytes)
+> 0:/assets/labels.txt          (10 lines: 0..9)
+> 0:/assets/samples             (sample image folder)
