@@ -151,7 +151,7 @@ int main(){
     //   0:/assets/pw1x1_c8x3.bin        (PW weights, Cout=8, Cin=3)
 
     int W=0,H=0; vector<uint8_t> rgb;
-    if(!load_bmp_24_stream("0:/assets/digit_1.bmp", W, H, rgb)){ xil_printf("BMP load failed\r\n"); return -1; }
+    if(!load_bmp_24_stream("0:/assets/samples/digit_1.bmp", W, H, rgb)){ xil_printf("BMP load failed\r\n"); return -1; }
     xil_printf("Image 2 loaded: %dx%d\r\n", W, H);
     if(W!=32 || H!=32){ xil_printf("For this demo, please use 32x32 BMP.\r\n"); return -1; }
 
@@ -256,3 +256,4 @@ int main(){
     while(1){}
     return 0;
 }
+
