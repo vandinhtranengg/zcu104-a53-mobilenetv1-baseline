@@ -62,26 +62,12 @@ Troubleshooting:
 ## 🚀 What to do next
 
 ### 1) Swap in real MobileNetV1 weights (quantized INT8)
-- Load MobileNetV1 (224×224) in PyTorch/TensorFlow, perform **PTQ or QAT** to INT8.
-- Export per‑layer binaries (DW and PW) plus a small `model.json` manifest describing shapes, strides, and quant params (`w_scale`, `w_zp`, optional bias).
-- Update firmware to parse `model.json` and run each block sequentially (DW → ReLU6 → PW).
 
 ### 2) Introduce more blocks (DW + PW) to resemble MobileNetV1
-- Extend the pipeline to multiple blocks (e.g., 10–13 blocks), with optional **stride=2** in DW for downsampling.
-- Grow channels across blocks (e.g., 32 → 64 → 128 …) and reuse pre‑allocated workspaces to minimize allocations.
 
 ---
 
-### 🔧 Improvements that will benefit the project
 
-**Quantization & accuracy**
-- Move from a single global `w_scale` to **per‑layer scales** (DW vs PW) for better dynamic range.
-- Add **bias** support (int32) with `bias_scale = in_scale * w_scale`.
-- Consider **QAT** so the model learns quantization behavior; keep asymmetric quant (`zp=128`) to match firmware.
-
-**Preprocessing**
-- Add a **resizer** for arbitrary BMP sizes:
-  - **Nearest** (fast) and **bilinear** (better quality) to standard input sizes (e.g., 224×224).
 
 
 
