@@ -132,6 +132,15 @@ MM2S (AXI DMA)   →   DW3x3 IP   →   PW1x1 IP   →   S2MM (AXI DMA)
 
 - **Chained mode:** once stable, connect `DW`’s `M_AXIS` directly to `PW`’s `S_AXIS` to avoid intermediate DDR traffic.
 
+### Depthwise (DW) and Pointwise (PW) compute characteristics
+
+- **DW (Depthwise Convolution)**  
+  - **Low compute per byte** → bandwidth‑bound rather than compute‑bound.  
+  - Best to **maximize channel parallelism**, **use line buffers**, and apply **DW→PW fusion** to reduce unnecessary DRAM round‑trips.
+
+- **PW (1×1 Pointwise Convolution)**  
+  - Behaves like **GEMM** and typically **dominates both runtime and parameter size**.  
+  - Optimize using **aggressive tiling** and **on‑chip data reuse**, keeping both weights and activation tiles in **BRAM** whenever possible.
 
 ---
 
