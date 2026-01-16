@@ -103,6 +103,31 @@ void pwconv1x1_nhwc_u8(const tensor_u8_nhwc_t *in,const uint8_t *k1x1,const int3
   }
 }
 ```
+
+### System architecture Suggestion
+
+Two standalone HLS IPs with **AXI4-Stream** data and **AXI4-Lite** control:
+
+- **MM2S — Memory-Mapped to Stream**
+  - **Direction:** DDR → AXI4-Stream  
+  - **Purpose:** Reads data from memory and sends it as a streaming interface (feeding input data to an accelerator).  
+  - **Data path:**  
+    `DDR (AXI4-MM) → AXI DMA (MM2S) → AXI4-Stream → Accelerator`
+
+- **S2MM — Stream to Memory-Mapped**
+  - **Direction:** AXI4-Stream → DDR  
+  - **Purpose:** Receives streaming data and writes it back to memory (collecting results from an accelerator).  
+  - **Data path:**  
+    `Accelerator → AXI4-Stream → AXI DMA (S2MM) → DDR (AXI4-MM)`
+
+- **AXI4-Lite registers per IP** for control/status.
+
+- **Standalone mode:** you can run each IP with MM2S/S2MM separately  
+  (e.g., `DW → DDR`, then `DDR → PW`) while you debug.
+
+- **Chained mode:** once stable, connect `DW`’s `M_AXIS` directly to `PW`’s `S_AXIS` to avoid intermediate DDR traffic.
+
+
 ---
 
 
