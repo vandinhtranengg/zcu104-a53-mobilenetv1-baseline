@@ -107,8 +107,10 @@ void pwconv1x1_nhwc_u8(const tensor_u8_nhwc_t *in,const uint8_t *k1x1,const int3
 ### System architecture Suggestion
 
 Two standalone HLS IPs with **AXI4-Stream** data and **AXI4-Lite** control:
+```c
 MM2S (AXI DMA)   →   DW3x3 IP   →   PW1x1 IP   →   S2MM (AXI DMA)
-                    (AXI-Lite)    (AXIS-Lite)
+                   (AXI-Lite)    (AXIS-Lite)
+```
             
 
 - **MM2S — Memory-Mapped to Stream**
