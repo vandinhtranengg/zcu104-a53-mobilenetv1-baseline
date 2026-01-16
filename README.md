@@ -63,7 +63,8 @@ Troubleshooting:
 
 ### 1) Swap in real MobileNetV1 weights (quantized INT8) 
 ### 2) Introduce more blocks (DW + PW) to resemble MobileNetV1
-### 3) Buil the accelerator HLS IPs (the DepthwiseConv3×3 operator and PWConv 1×1 operator)
+### 3) Buil the accelerator HLS IPs for:  
+- DepthwiseConv3×3 Operator
 ```c
 void dwconv3x3_nhwc_u8(const tensor_u8_nhwc_t *in,const uint8_t *k3x3,const int32_t *bias,
                        float w_scale,int w_zp,tensor_u8_nhwc_t *out,int apply_relu6){
@@ -85,7 +86,9 @@ void dwconv3x3_nhwc_u8(const tensor_u8_nhwc_t *in,const uint8_t *k3x3,const int3
     out->data[(y*W+x)*C+c]=q;
   }
 }
-
+```
+- PWConv 1×1 Operator
+```c
 void pwconv1x1_nhwc_u8(const tensor_u8_nhwc_t *in,const uint8_t *k1x1,const int32_t *bias,
                        float w_scale,int w_zp,tensor_u8_nhwc_t *out){
   int H=in->H,W=in->W,Cin=in->C,Cout=out->C;
