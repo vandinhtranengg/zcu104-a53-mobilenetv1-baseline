@@ -61,10 +61,45 @@ Troubleshooting:
 
 ## 🚀 What to do next
 
-### 1) Swap in real MobileNetV1 weights (quantized INT8)
-
+### 1) Swap in real MobileNetV1 weights (quantized INT8) 
 ### 2) Introduce more blocks (DW + PW) to resemble MobileNetV1
+### 3) Buil the accelerator HLS IPs (the DepthwiseConv3×3 operator and PWConv 1×1 operator)
+```c
+void dwconv3x3_nhwc_u8(const tensor_u8_nhwc_t *in,const uint8_t *k3x3,const int32_t *bias,
+                       float w_scale,int w_zp,tensor_u8_nhwc_t *out,int apply_relu6){
+  int H=in->H,W=in->W,C=in->C;
+  for(int y=0;y<H;++y)for(int x=0;x<W;++x)for(int c=0;c<C;++c){
+    float acc=(bias? (float)bias[c]*in->scale*w_scale : 0.0f);
+    for(int ky=-1;ky<=1;++ky){int iy=y+ky; if(iy<0||iy>=H) continue;
+      for(int kx=-1;kx<=1;++kx){int ix=x+kx; if(ix<0||ix>=W) continue;
+        uint8_t q_in=in->data[(iy*W+ix)*C+c];
+        uint8_t q_k=k3x3[c*9+(ky+1)*3+(kx+1)];
+        acc+=deq(q_in,in->scale,in->zp)*deq(q_k,w_scale,w_zp);
+      }}
+    uint8_t q=req(acc,out->scale,out->zp);
+    if(apply_relu6){
+      int q6=out->zp+(int)lrintf(6.0f/out->scale);
+      if(q>q6) q=(q6>255?255:(q6<0?0:(uint8_t)q6));
+      if(q<out->zp) q=(uint8_t)out->zp;
+    }
+    out->data[(y*W+x)*C+c]=q;
+  }
+}
 
+void pwconv1x1_nhwc_u8(const tensor_u8_nhwc_t *in,const uint8_t *k1x1,const int32_t *bias,
+                       float w_scale,int w_zp,tensor_u8_nhwc_t *out){
+  int H=in->H,W=in->W,Cin=in->C,Cout=out->C;
+  for(int y=0;y<H;++y)for(int x=0;x<W;++x){
+    const uint8_t* vin=&in->data[(y*W+x)*Cin];
+    for(int co=0;co<Cout;++co){
+      float acc=(bias? (float)bias[co]*in->scale*w_scale:0.0f);
+      const uint8_t* wrow=&k1x1[co*Cin];
+      for(int ci=0;ci<Cin;++ci){ acc+=deq(vin[ci],in->scale,in->zp)*deq(wrow[ci],w_scale,w_zp); }
+      out->data[(y*W+x)*Cout+co]=req(acc,out->scale,out->zp);
+    }
+  }
+}
+```
 ---
 
 
