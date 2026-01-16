@@ -132,7 +132,8 @@ MM2S (AXI DMA)   →   DW3x3 IP   →   PW1x1 IP   →   S2MM (AXI DMA)
 
 - **Chained mode:** once stable, connect `DW`’s `M_AXIS` directly to `PW`’s `S_AXIS` to avoid intermediate DDR traffic.
 
-### Depthwise (DW) and Pointwise (PW) compute characteristics
+---
+### Notice: Depthwise (DW) and Pointwise (PW) compute characteristics
 
 - **DW (Depthwise Convolution)**  
   - **Low compute per byte** → bandwidth‑bound rather than compute‑bound.  
