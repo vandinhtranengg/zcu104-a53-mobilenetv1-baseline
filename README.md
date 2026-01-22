@@ -144,8 +144,30 @@ MM2S (AXI DMA)   →   DW3x3 IP   →   PW1x1 IP   →   S2MM (AXI DMA)
   - Optimize using **aggressive tiling** and **on‑chip data reuse**, keeping both weights and activation tiles in **BRAM** whenever possible.
 
 ---
+---
 
+##Suggested HLS Skeleton for Implementation
+- **Put the systolic array on PW (1×1)** and treat it as **GEMM** with tiling: M = H·W, K = Cin, N = Cout.
+- **Handle DW (3×3) as a streaming stencil** using line buffers and channel parallelism.
+- All arithmetic is **INT8 × INT8 → INT32 accumulate**, then **requantize to u8**.
+- Provide a **DW→PW fused top** that streams DW output directly into the PW systolic array to **avoid DRAM traffic**.
 
+### 0) Common types & quant helpers — accel_common.hpp
+
+### 1) DW 3×3 streaming stencil — dw3x3_stream.hpp
+- **AXIS in (u8 NHWC vectors)** → **line buffers** + **3×3 window** per channel → **INT32 MAC** → **Q24 requant** → **ReLU6 clamp** → **AXIS out (u8 NHWC vectors)**.
+- **Channel parallelism**: process P_C channels in parallel each cycle.
+- Designed to feed PW directly (DW→PW fusion).
+
+### 2) PW 1×1 systolic (GEMM) — pw1x1_systolic.hpp
+- Consumes DW output stream (NHWC u8) or an external stream and treats PW as GEMM:
+- A (M×K) × B (K×N) → C (M×N), where M = H·W, K = Cin, N = Cout.
+- Tiling with on‑chip A_tile (Tk) and B_tile (Tk×Tn); PE mesh computes Tn outputs per activation vector.
+- Weight‑stationary flavor shown (weights kept in local tile while streaming activations).
+ 
+## 3) DW→PW fused top (streaming) — dw_pw_fused_top.cpp
+- Builds dataflow pipeline: DW stream → PW systolic with no intermediate DRAM.
+- AXI‑Lite arguments set all quant parameters consistently.
 
 
 
