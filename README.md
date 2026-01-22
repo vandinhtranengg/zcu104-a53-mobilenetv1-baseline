@@ -144,31 +144,113 @@ MM2S (AXI DMA)   →   DW3x3 IP   →   PW1x1 IP   →   S2MM (AXI DMA)
   - Optimize using **aggressive tiling** and **on‑chip data reuse**, keeping both weights and activation tiles in **BRAM** whenever possible.
 
 ---
----
 
-##Suggested HLS Skeleton for Implementation
+## Suggested HLS Skeleton for Implementation
 - **Put the systolic array on PW (1×1)** and treat it as **GEMM** with tiling: M = H·W, K = Cin, N = Cout.
 - **Handle DW (3×3) as a streaming stencil** using line buffers and channel parallelism.
 - All arithmetic is **INT8 × INT8 → INT32 accumulate**, then **requantize to u8**.
 - Provide a **DW→PW fused top** that streams DW output directly into the PW systolic array to **avoid DRAM traffic**.
 
 ### 0) Common types & quant helpers — accel_common.hpp
+```c
+
+// Common types (used by all blocks)
+using axis_cvec_t = Axis<DW_BITS>;   // DW_BITS = CHAN_ALIGN * 8
+using q24_t      = ap_int<32>;       // Q24 requant multiplier
+
+```
 
 ### 1) DW 3×3 streaming stencil — dw3x3_stream.hpp
 - **AXIS in (u8 NHWC vectors)** → **line buffers** + **3×3 window** per channel → **INT32 MAC** → **Q24 requant** → **ReLU6 clamp** → **AXIS out (u8 NHWC vectors)**.
 - **Channel parallelism**: process P_C channels in parallel each cycle.
 - Designed to feed PW directly (DW→PW fusion).
+```c
+void dw3x3_stream(
+  hls::stream<axis_cvec_t> &s_in,     // AXIS(u8, NHWC, CHAN_ALIGN per beat)
+  hls::stream<axis_cvec_t> &s_out,    // AXIS(u8, same width)
+  const ap_uint<8>* w_dw,             // m_axi: [C * 9], layout c*9 + ky*3 + kx
+  int H, int W, int C, int stride,    // stride = 1 (skeleton)
+  int in_zp, int w_zp, int out_zp,    // quant zero-points
+  q24_t alpha_q,                      // Q24: (in_s * w_s / out_s)
+  ap_uint<8> relu6_qmax               // out_zp + round(6/out_s)
+);
+//-------------Pseudocode---------------------
+for y in [0..H-1]:
+  for x in [0..W-1]:
+    for cb in [0..(C/CHAN_ALIGN)-1]:      // channel-block index
+      (u8[CHAN_ALIGN]) pix_pack = AXIS_read(s_in)          // one beat
+      // 1) Line buffers: write current pack into row ring (y % 3) at column x
+      LB[(y % 3)][x][:] = pix_pack[:]
+
+      // 2) 3×3 window per lane (zero-pad at borders)
+      for pc in 0..CHAN_ALIGN-1:
+        WIN[pc] = gather_3x3_from_LB(LB, y, x, pc)
+
+      // 3) Load DW weights for current channel block (9 taps per lane)
+      WDWC[CHAN_ALIGN][3][3] = load_from(w_dw, c_base=cb*CHAN_ALIGN)
+
+      // 4) Per-lane compute: INT8xINT8→INT32, Q24 requant, ReLU6 clamp
+      for pc in 0..CHAN_ALIGN-1:
+        acc = sum_{ky,kx}( (WIN[pc][ky][kx] - in_zp) * (WDWC[pc][ky][kx] - w_zp) )
+        r   = (acc * alpha_q) >> 24
+        q   = out_zp + r
+        q   = clamp(q, lo=out_zp, hi=relu6_qmax)
+        out_pack[pc] = saturate_u8(q)
+
+      // 5) Pack & write one AXIS beat; TLAST asserted only on final (y,x,cb)
+      AXIS_write(s_out, out_pack, last = (y==H-1 && x==W-1 && cb==C/CHAN_ALIGN-1))
+```
 
 ### 2) PW 1×1 systolic (GEMM) — pw1x1_systolic.hpp
 - Consumes DW output stream (NHWC u8) or an external stream and treats PW as GEMM:
 - A (M×K) × B (K×N) → C (M×N), where M = H·W, K = Cin, N = Cout.
 - Tiling with on‑chip A_tile (Tk) and B_tile (Tk×Tn); PE mesh computes Tn outputs per activation vector.
 - Weight‑stationary flavor shown (weights kept in local tile while streaming activations).
+```c
+void pw1x1_systolic(
+  hls::stream<axis_cvec_t> &s_in,     // AXIS(u8, NHWC)
+  hls::stream<axis_cvec_t> &s_out,    // AXIS(u8, NHWC)
+  const ap_uint<8>* w_pw,             // m_axi: [Cout * Cin], row-major co*Cin + ci
+  int H, int W, int Cin, int Cout,
+  int in_zp, int w_zp, int out_zp,    // quant zero-points
+  q24_t alpha_q                       // Q24: (in_s * w_s / out_s)
+)
+//-------------Pseudocode---------------------
+
+
+
+```
  
-## 3) DW→PW fused top (streaming) — dw_pw_fused_top.cpp
+### 3) DW→PW fused top (streaming) — dw_pw_fused_top.cpp
 - Builds dataflow pipeline: DW stream → PW systolic with no intermediate DRAM.
 - AXI‑Lite arguments set all quant parameters consistently.
+```c
+void dw_pw_fused_top(
+  hls::stream<axis_cvec_t> &s_in,
+  hls::stream<axis_cvec_t> &s_out,
+  const ap_uint<8>* w_dw,             // DW weights
+  const ap_uint<8>* w_pw,             // PW weights
+  int H, int W, int Cin, int Cout, int stride,
+  // DW quant
+  int dw_in_zp, int dw_w_zp, int dw_out_zp, q24_t dw_alpha_q, ap_uint<8> dw_relu6_qmax,
+  // PW quant (note: pw_in_zp == dw_out_zp)
+  int pw_in_zp, int pw_w_zp, int pw_out_zp, q24_t pw_alpha_q
+);
+//-------------Pseudocode---------------------
 
+create FIFO s_dw2pw (depth ~ 32–128)
+
+DATAFLOW {
+  // Stage 1: DW 3×3 (streams NHWC u8 vectors out)
+  dw3x3_stream(s_in, s_dw2pw, w_dw, H, W, Cin, stride,
+               dw_in_zp, dw_w_zp, dw_out_zp, dw_alpha_q, dw_relu6_qmax)
+
+  // Stage 2: PW 1×1 GEMM (consumes DW stream directly)
+  pw1x1_systolic(s_dw2pw, s_out, w_pw, H, W, Cin, Cout,
+                 pw_in_zp /*= dw_out_zp*/, pw_w_zp, pw_out_zp, pw_alpha_q)
+}
+
+```
 
 
 
