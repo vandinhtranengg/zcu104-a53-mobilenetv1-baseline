@@ -216,9 +216,30 @@ void pw1x1_systolic(
   q24_t alpha_q                       // Q24: (in_s * w_s / out_s)
 )
 //-------------Pseudocode---------------------
+M = H * W
+for m in [0..M-1]:                         // pixel index
+  // 1) Read Cin activations from stream into A_buf in CHAN_ALIGN-sized beats
+  for k0 in [0..Cin-1 step CHAN_ALIGN]:
+    beat = AXIS_read(s_in)
+    A_buf[k0 : k0+CHAN_ALIGN] = unpack(beat)
 
+  // 2) Produce Cout outputs in tiles of Tn (e.g., 8 or 16)
+  for n0 in [0..Cout-1 step Tn]:
+    ACC[Tn] = {0}
 
+    // 3) K-reduction in Tk chunks (Tk = CHAN_ALIGN recommended initially)
+    for k0 in [0..Cin-1 step Tk]:
+      A_tile[Tk]       = A_buf[k0 : k0+Tk]
+      B_tile[Tn][Tk]   = load_from(w_pw, rows = n0..n0+Tn-1, cols = k0..k0+Tk-1)
 
+      // 4) Weight-stationary MAC
+      for tn in 0..Tn-1:
+        for tk in 0..Tk-1:
+          ACC[tn] += (A_tile[tk] - in_zp) * (B_tile[tn][tk] - w_zp)
+
+    // 5) Requantize & emit Tn results (one AXIS beat)
+    out_pack[0..Tn-1] = quantize_u8(ACC, out_zp, alpha_q)  // (acc*alpha_q)>>24 + out_zp
+    AXIS_write(s_out, out_pack, last = (n0+Tn>=Cout && m==M-1))
 ```
  
 ### 3) DW→PW fused top (streaming) — dw_pw_fused_top.cpp
@@ -237,7 +258,6 @@ void dw_pw_fused_top(
   int pw_in_zp, int pw_w_zp, int pw_out_zp, q24_t pw_alpha_q
 );
 //-------------Pseudocode---------------------
-
 create FIFO s_dw2pw (depth ~ 32–128)
 
 DATAFLOW {
@@ -249,7 +269,6 @@ DATAFLOW {
   pw1x1_systolic(s_dw2pw, s_out, w_pw, H, W, Cin, Cout,
                  pw_in_zp /*= dw_out_zp*/, pw_w_zp, pw_out_zp, pw_alpha_q)
 }
-
 ```
 
 
